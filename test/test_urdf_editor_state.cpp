@@ -846,9 +846,10 @@ TEST(UrdfEditorState, EditorWidgetFormatsXmlWithTwoSpaceIndentOnApply) {
   }();
   ASSERT_NE(apply_button, nullptr);
 
-  editor->setPlainText(
+  const auto compact_xml = std::string(
       "<robot name=\"format_bot\"><link name=\"base_link\"><visual><geometry>"
       "<box size=\"1 1 1\"/></geometry></visual></link></robot>");
+  editor->setPlainText(QString::fromStdString(compact_xml));
   QApplication::processEvents();
   apply_button->click();
   QApplication::processEvents();
@@ -860,6 +861,11 @@ TEST(UrdfEditorState, EditorWidgetFormatsXmlWithTwoSpaceIndentOnApply) {
   EXPECT_NE(formatted.find("\n        <box size=\"1 1 1\" />"),
             std::string::npos);
   EXPECT_EQ(state.snapshot().model.robot_name, "format_bot");
+
+  ASSERT_TRUE(editor->document()->isUndoAvailable());
+  editor->undo();
+  QApplication::processEvents();
+  EXPECT_EQ(editor->toPlainText().toStdString(), compact_xml);
 }
 
 TEST(UrdfEditorState, EditorWidgetPreservesBlankLinesOnApply) {

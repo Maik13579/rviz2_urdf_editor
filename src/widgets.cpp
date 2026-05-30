@@ -1138,7 +1138,8 @@ void UrdfXmlEditorWidget::refresh() {
   title_edit_->setText(QString::fromStdString(document.title));
   loaded_editor_text_ = document.xml;
   const auto editor_text = QString::fromStdString(loaded_editor_text_);
-  {
+  const bool editor_text_changed = editor_->toPlainText() != editor_text;
+  if (editor_text_changed) {
     const QSignalBlocker editor_blocker(editor_);
     const QSignalBlocker document_blocker(editor_->document());
     editor_->setPlainText(editor_text);
@@ -1147,7 +1148,9 @@ void UrdfXmlEditorWidget::refresh() {
   xml_highlighter_->rehighlight();
   if (auto *selection_editor =
           dynamic_cast<SelectionMarkerPlainTextEdit *>(editor_)) {
-    selection_editor->resetFolds();
+    if (editor_text_changed) {
+      selection_editor->resetFolds();
+    }
     selection_editor->setHighlightedRange(-1, -1);
   }
   if (document.has_selection && document.selection_end >= document.selection_begin &&
@@ -1236,9 +1239,11 @@ void UrdfXmlEditorWidget::applyCurrentXml() {
   const auto formatted_xml = formatXmlWithTwoSpaceIndent(
       editor_->toPlainText().toStdString(), document.whole_file);
   if (formatted_xml != editor_->toPlainText().toStdString()) {
-    const QSignalBlocker editor_blocker(editor_);
-    const QSignalBlocker document_blocker(editor_->document());
-    editor_->setPlainText(QString::fromStdString(formatted_xml));
+    QTextCursor cursor(editor_->document());
+    cursor.beginEditBlock();
+    cursor.select(QTextCursor::Document);
+    cursor.insertText(QString::fromStdString(formatted_xml));
+    cursor.endEditBlock();
     xml_highlighter_->rehighlight();
   }
   if (!UrdfEditorState::instance().applyXmlEditorDocument(
