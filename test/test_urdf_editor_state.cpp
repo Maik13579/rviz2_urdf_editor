@@ -813,13 +813,14 @@ TEST(UrdfEditorState, EditorWidgetTogglesLineWrap) {
   EXPECT_EQ(editor->lineWrapMode(), QPlainTextEdit::NoWrap);
 }
 
-TEST(UrdfEditorState, EditorWidgetDoesNotShowReloadButton) {
-  auto node = std::make_shared<rclcpp::Node>("urdf_editor_no_reload_test");
+TEST(UrdfEditorState, EditorWidgetDoesNotShowManualValidateOrReloadButtons) {
+  auto node = std::make_shared<rclcpp::Node>("urdf_editor_no_manual_validate_test");
   rviz2_urdf_editor::UrdfXmlEditorWidget editor_widget;
-  editor_widget.initialize(node, "xml_editor_no_reload");
+  editor_widget.initialize(node, "xml_editor_no_manual_validate");
   editor_widget.configure(editor_widget.getDefaultConfig());
 
   for (auto *button : editor_widget.widget()->findChildren<QPushButton *>()) {
+    EXPECT_NE(button->text(), "Validate");
     EXPECT_NE(button->text(), "Reload");
   }
 }

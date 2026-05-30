@@ -1074,12 +1074,10 @@ UrdfXmlEditorWidget::UrdfXmlEditorWidget() {
   line_wrap_check_ = new QCheckBox("Wrap", root_widget_);
   line_wrap_check_->setChecked(false);
   line_wrap_check_->setToolTip("Wrap long XML lines to the editor width.");
-  auto *validate_button = new QPushButton("Validate", root_widget_);
   apply_button_ = new QPushButton("Apply", root_widget_);
   button_row->addWidget(undo_button_);
   button_row->addWidget(redo_button_);
   button_row->addWidget(line_wrap_check_);
-  button_row->addWidget(validate_button);
   button_row->addStretch(1);
   button_row->addWidget(apply_button_);
   layout->addLayout(button_row);
@@ -1088,8 +1086,6 @@ UrdfXmlEditorWidget::UrdfXmlEditorWidget() {
   status_label_->setWordWrap(true);
   layout->addWidget(status_label_);
 
-  QObject::connect(validate_button, &QPushButton::clicked,
-                   [this]() { validateCurrentXml(); });
   QObject::connect(undo_button_, &QPushButton::clicked, editor_,
                    &QPlainTextEdit::undo);
   QObject::connect(redo_button_, &QPushButton::clicked, editor_,
