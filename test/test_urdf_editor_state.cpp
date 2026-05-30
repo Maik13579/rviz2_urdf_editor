@@ -800,13 +800,51 @@ TEST(UrdfEditorState, EditorWidgetTogglesLineWrap) {
     }
   }
   ASSERT_NE(wrap_check, nullptr);
-  EXPECT_TRUE(wrap_check->isChecked());
-  EXPECT_EQ(editor->lineWrapMode(), QPlainTextEdit::WidgetWidth);
-
-  wrap_check->setChecked(false);
+  EXPECT_FALSE(wrap_check->isChecked());
   EXPECT_EQ(editor->lineWrapMode(), QPlainTextEdit::NoWrap);
+
   wrap_check->setChecked(true);
   EXPECT_EQ(editor->lineWrapMode(), QPlainTextEdit::WidgetWidth);
+  wrap_check->setChecked(false);
+  EXPECT_EQ(editor->lineWrapMode(), QPlainTextEdit::NoWrap);
+}
+
+TEST(UrdfEditorState, EditorWidgetFormatsXmlWithTwoSpaceIndentOnApply) {
+  auto node = std::make_shared<rclcpp::Node>("urdf_editor_format_test");
+  const auto path = writeTempFile("dashboard_format.urdf", kSimpleUrdf);
+  auto &state = rviz2_urdf_editor::UrdfEditorState::instance();
+  ASSERT_TRUE(state.loadFile(path.string(), {})) << state.snapshot().last_error;
+
+  rviz2_urdf_editor::UrdfXmlEditorWidget editor_widget;
+  editor_widget.initialize(node, "xml_editor_format");
+  editor_widget.configure(editor_widget.getDefaultConfig());
+
+  auto *editor = editor_widget.widget()->findChild<QPlainTextEdit *>();
+  ASSERT_NE(editor, nullptr);
+  auto *apply_button = [&]() -> QPushButton * {
+    for (auto *button : editor_widget.widget()->findChildren<QPushButton *>()) {
+      if (button->text() == "Apply") {
+        return button;
+      }
+    }
+    return nullptr;
+  }();
+  ASSERT_NE(apply_button, nullptr);
+
+  editor->setPlainText(
+      "<robot name=\"format_bot\"><link name=\"base_link\"><visual><geometry>"
+      "<box size=\"1 1 1\"/></geometry></visual></link></robot>");
+  QApplication::processEvents();
+  apply_button->click();
+  QApplication::processEvents();
+
+  const auto formatted = editor->toPlainText().toStdString();
+  EXPECT_NE(formatted.find("\n  <link name=\"base_link\">"), std::string::npos);
+  EXPECT_NE(formatted.find("\n    <visual>"), std::string::npos);
+  EXPECT_NE(formatted.find("\n      <geometry>"), std::string::npos);
+  EXPECT_NE(formatted.find("\n        <box size=\"1 1 1\" />"),
+            std::string::npos);
+  EXPECT_EQ(state.snapshot().model.robot_name, "format_bot");
 }
 
 TEST(UrdfEditorState, EditorWidgetSelectionUsesGutterOnly) {
@@ -1226,6 +1264,21 @@ TEST(UrdfEditorState, FileWidgetLoadStartsRobotStatePublisher) {
             snapshot.arguments.end());
 
   runtime.stop();
+}
+
+TEST(UrdfEditorState, FileWidgetAutoPublishesWithoutManualPublishButton) {
+  auto node = std::make_shared<rclcpp::Node>("urdf_file_widget_auto_publish_test");
+  rviz2_urdf_editor::UrdfXacroFileWidget widget;
+  widget.initialize(node, "file_widget_auto_publish");
+  widget.configure(widget.getDefaultConfig());
+
+  for (auto *button : widget.widget()->findChildren<QPushButton *>()) {
+    EXPECT_NE(button->text(), "Publish Now");
+  }
+  EXPECT_TRUE(widget.getDefaultConfig()["auto_publish"].as<bool>());
+  EXPECT_TRUE(rviz2_urdf_editor::UrdfEditorState::instance()
+                  .snapshot()
+                  .auto_publish);
 }
 
 TEST(RobotStatePublisherRuntime, StartsOnlyOneSharedRuntime) {

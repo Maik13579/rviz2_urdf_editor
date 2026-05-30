@@ -6,6 +6,7 @@
 #include <functional>
 #include <map>
 #include <set>
+#include <sstream>
 #include <utility>
 
 #include <QBrush>
@@ -67,7 +68,7 @@ YAML::Node normalizeConfig(const YAML::Node &config) {
   normalized["frame_prefix"] = "";
   normalized["publish_frequency"] = 20.0;
   normalized["ignore_timestamp"] = false;
-  normalized["auto_publish"] = false;
+  normalized["auto_publish"] = true;
   normalized["mesh_alpha_multiplier"] = 1.0;
   normalized["highlight_color"] = "#ffd10d";
   normalized["topic"] = "/joint_states";
@@ -131,6 +132,42 @@ ConfigField makeBoolField(const char *, const char *, const char *, bool) {
 ConfigField makeColorField(const char *, const char *, const char *, bool,
                            const char *) {
   return {};
+}
+
+std::string formatXmlWithTwoSpaceIndent(const std::string &xml,
+                                        const bool whole_file) {
+  pugi::xml_document doc;
+  const auto parse_options =
+      whole_file ? pugi::parse_default
+                 : (pugi::parse_default | pugi::parse_fragment);
+  const auto parse_input =
+      whole_file
+          ? xml
+          : "<root xmlns:xacro=\"http://www.ros.org/wiki/xacro\">" + xml +
+                "</root>";
+  const auto result = doc.load_string(parse_input.c_str(), parse_options);
+  if (!result) {
+    return xml;
+  }
+
+  std::ostringstream output;
+  if (whole_file) {
+    doc.save(output, "  ", pugi::format_default, pugi::encoding_utf8);
+    return output.str();
+  }
+
+  bool first = true;
+  for (const auto child : doc.child("root").children()) {
+    if (child.type() != pugi::node_element) {
+      continue;
+    }
+    if (!first) {
+      output << '\n';
+    }
+    child.print(output, "  ", pugi::format_default, pugi::encoding_utf8);
+    first = false;
+  }
+  return output.str();
 }
 
 void setRobotModelAlpha(rviz_common::DisplayGroup *group, const double alpha) {
@@ -748,12 +785,10 @@ UrdfXacroFileWidget::UrdfXacroFileWidget() {
   auto *browse = new QPushButton("Browse", root_widget_);
   auto *load = new QPushButton("Load", root_widget_);
   auto *save = new QPushButton("Save", root_widget_);
-  auto *publish = new QPushButton("Publish Now", root_widget_);
   button_row->addWidget(browse);
   button_row->addWidget(load);
   button_row->addStretch(1);
   button_row->addWidget(save);
-  button_row->addWidget(publish);
   layout->addLayout(button_row);
 
   auto *alpha_row = new QHBoxLayout();
@@ -784,11 +819,6 @@ UrdfXacroFileWidget::UrdfXacroFileWidget() {
   });
   QObject::connect(save, &QPushButton::clicked, [this]() {
     UrdfEditorState::instance().save();
-    syncFromState();
-  });
-  QObject::connect(publish, &QPushButton::clicked, [this]() {
-    UrdfEditorState::instance().setPublishTopic(publish_topic_);
-    UrdfEditorState::instance().publishNow();
     syncFromState();
   });
   QObject::connect(mesh_alpha_slider_, &QSlider::valueChanged, [this](int value) {
@@ -866,7 +896,7 @@ YAML::Node UrdfXacroFileWidget::getDefaultConfig() const {
   config["frame_prefix"] = "";
   config["publish_frequency"] = 20.0;
   config["ignore_timestamp"] = false;
-  config["auto_publish"] = false;
+  config["auto_publish"] = true;
   config["mesh_alpha_multiplier"] = 1.0;
   return config;
 }
@@ -1005,7 +1035,7 @@ UrdfXmlEditorWidget::UrdfXmlEditorWidget() {
   undo_button_ = new QPushButton("Undo", root_widget_);
   redo_button_ = new QPushButton("Redo", root_widget_);
   line_wrap_check_ = new QCheckBox("Wrap", root_widget_);
-  line_wrap_check_->setChecked(true);
+  line_wrap_check_->setChecked(false);
   line_wrap_check_->setToolTip("Wrap long XML lines to the editor width.");
   auto *validate_button = new QPushButton("Validate", root_widget_);
   apply_button_ = new QPushButton("Apply", root_widget_);
@@ -1037,6 +1067,7 @@ UrdfXmlEditorWidget::UrdfXmlEditorWidget() {
     editor_->setLineWrapMode(enabled ? QPlainTextEdit::WidgetWidth
                                      : QPlainTextEdit::NoWrap);
   });
+  editor_->setLineWrapMode(QPlainTextEdit::NoWrap);
   QObject::connect(apply_button_, &QPushButton::clicked,
                    [this]() { applyCurrentXml(); });
   QObject::connect(reload_button_, &QPushButton::clicked,
@@ -1192,8 +1223,17 @@ void UrdfXmlEditorWidget::applyCurrentXml() {
   if (!apply_button_->isEnabled()) {
     return;
   }
+  const auto document = UrdfEditorState::instance().xmlEditorDocument();
+  const auto formatted_xml = formatXmlWithTwoSpaceIndent(
+      editor_->toPlainText().toStdString(), document.whole_file);
+  if (formatted_xml != editor_->toPlainText().toStdString()) {
+    const QSignalBlocker editor_blocker(editor_);
+    const QSignalBlocker document_blocker(editor_->document());
+    editor_->setPlainText(QString::fromStdString(formatted_xml));
+    xml_highlighter_->rehighlight();
+  }
   if (!UrdfEditorState::instance().applyXmlEditorDocument(
-          editor_->toPlainText().toStdString())) {
+          formatted_xml)) {
     status_label_->setText(QString::fromStdString(
         UrdfEditorState::instance().snapshot().last_error));
   }
