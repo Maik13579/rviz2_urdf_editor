@@ -1,13 +1,10 @@
-# Copyright 2026 Maik Knof
-# SPDX-License-Identifier: Apache-2.0
-
 Panels:
   - Class: rviz_common/Displays
     Help Height: 0
     Name: Displays
     Property Tree Widget:
       Expanded:
-        - /TF1
+        - /TF Tree1
       Splitter Ratio: 0.5
     Tree Height: 786
   - Class: rviz_common/Selection
@@ -27,6 +24,21 @@ Panels:
     SyncMode: 0
     SyncSource: ""
   - Class: rviz2_urdf_editor/UrdfEditorPanel
+    File Widget:
+      auto_publish: true
+      frame_prefix: ""
+      ignore_timestamp: false
+      joint_states_topic: /joint_states
+      mesh_alpha_multiplier: 1
+      path: ""
+      publish_frequency: 20
+      robot_description_topic: /robot_description
+      rsp_namespace: ""
+      rsp_node_name: dashboard_robot_state_publisher
+      tf_alpha_multiplier: 1
+      tf_axis_length: 0.17999999999999999
+      tf_joint_thickness: 1
+      tf_marker_scale: 1
     Name: URDF Editor
   - Class: rviz2_urdf_editor/UrdfNavPanel
     Name: URDF Navigation
@@ -51,106 +63,6 @@ Visualization Manager:
         Expand Link Details: false
         Expand Tree: false
         Link Tree Style: Links in Alphabetic Order
-        base_footprint:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        base_laser_front_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        base_laser_rear_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        base_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        caster_back_left_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        caster_back_right_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        caster_front_left_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        caster_front_right_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        hokuyo_back_left:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        hokuyo_back_left_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        hokuyo_front_right:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        hokuyo_front_right_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        plate_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        plate_top_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        velodyne:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        velodyne_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        velodyne_mount:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        wheel_back_left_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        wheel_back_right_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        wheel_front_left_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        wheel_front_right_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
       Mass Properties:
         Inertia: false
         Mass: false
@@ -159,95 +71,14 @@ Visualization Manager:
       Update Interval: 0
       Value: true
       Visual Enabled: true
-    - Class: rviz_default_plugins/TF
+    - Class: rviz_default_plugins/InteractiveMarkers
+      Enable Transparency: true
       Enabled: true
-      Filter (blacklist): ""
-      Filter (whitelist): ""
-      Frame Timeout: 15
-      Frames:
-        All Enabled: true
-        base_footprint:
-          Value: true
-        base_laser_front_link:
-          Value: true
-        base_laser_rear_link:
-          Value: true
-        base_link:
-          Value: true
-        caster_back_left_link:
-          Value: true
-        caster_back_right_link:
-          Value: true
-        caster_front_left_link:
-          Value: true
-        caster_front_right_link:
-          Value: true
-        editor:
-          Value: true
-        hokuyo_back_left:
-          Value: true
-        hokuyo_back_left_link:
-          Value: true
-        hokuyo_front_right:
-          Value: true
-        hokuyo_front_right_link:
-          Value: true
-        plate_link:
-          Value: true
-        plate_top_link:
-          Value: true
-        velodyne:
-          Value: true
-        velodyne_link:
-          Value: true
-        velodyne_mount:
-          Value: true
-        wheel_back_left_link:
-          Value: true
-        wheel_back_right_link:
-          Value: true
-        wheel_front_left_link:
-          Value: true
-        wheel_front_right_link:
-          Value: true
-      Marker Scale: 0.5
-      Name: TF
-      Show Arrows: true
-      Show Axes: true
-      Show Names: false
-      Tree:
-        editor:
-          base_link:
-            base_footprint:
-              caster_back_left_link:
-                wheel_back_left_link:
-                  {}
-              caster_back_right_link:
-                wheel_back_right_link:
-                  {}
-              caster_front_left_link:
-                wheel_front_left_link:
-                  {}
-              caster_front_right_link:
-                wheel_front_right_link:
-                  {}
-            base_laser_front_link:
-              {}
-            base_laser_rear_link:
-              {}
-            plate_link:
-              plate_top_link:
-                hokuyo_back_left_link:
-                  hokuyo_back_left:
-                    {}
-                hokuyo_front_right_link:
-                  hokuyo_front_right:
-                    {}
-                velodyne_mount:
-                  velodyne_link:
-                    velodyne:
-                      {}
-      Update Interval: 0
+      Interactive Markers Namespace: /rviz2_urdf_editor/tf_tree
+      Name: TF Tree
+      Show Axes: false
+      Show Descriptions: false
+      Show Visual Aids: false
       Value: true
   Enabled: true
   Global Options:
@@ -296,7 +127,7 @@ Window Geometry:
   Height: 1011
   Hide Left Dock: false
   Hide Right Dock: false
-  QMainWindow State: 000000ff00000000fd0000000400000000000002af00000386fc0200000007fb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fc00000047000003860000019201000024fa000000010100000004fb0000001c00440061007300680062006f00610072006400500061006e0065006c0100000000000002660000000000000000fb00000016005500520044004600200045006400690074006f00720100000000ffffffff0000021f01000007fb000000100044006900730070006c0061007900730100000000ffffffff0000018601000007fb0000001200530065006c0065006300740069006f006e0100000000ffffffff0000008c0100000700000001000001b500000386fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fc0000004700000386000001a401000024fa000000000100000004fb0000001e00550052004400460020004e0061007600690067006100740069006f006e0100000000ffffffff0000013501000007fb0000001e005500520044004600200045006400690074006f007200200054006100620100000000ffffffff0000000000000000fb0000001c00440061007300680062006f00610072006400500061006e0065006c0100000000ffffffff0000000000000000fb0000000a0056006900650077007301000006610000011f0000011f01000007fb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e100000197000000030000078000000052fc0100000002fb0000000800540069006d0065000000000000000780000003aa01000007fb0000000800540069006d006501000000000000045000000000000000000000031a0000038600000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd00000004000000000000018600000386fc0200000007fb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fc0000004700000386000001b001000024fa000000010100000004fb0000001c00440061007300680062006f00610072006400500061006e0065006c0100000000000002660000000000000000fb00000016005500520044004600200045006400690074006f00720100000000ffffffff0000017f01000007fb000000100044006900730070006c0061007900730100000000ffffffff0000018601000007fb0000001200530065006c0065006300740069006f006e0100000000ffffffff0000008c01000007000000010000012800000386fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fc0000004700000386000001a401000024fa000000000100000004fb0000001e00550052004400460020004e0061007600690067006100740069006f006e0100000000ffffffff000000ca01000007fb0000001e005500520044004600200045006400690074006f007200200054006100620100000000ffffffff0000000000000000fb0000001c00440061007300680062006f00610072006400500061006e0065006c0100000000ffffffff0000000000000000fb0000000a0056006900650077007301000006610000011f0000011f01000007fb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e100000197000000030000078000000052fc0100000002fb0000000800540069006d0065000000000000000780000003aa01000007fb0000000800540069006d00650100000000000004500000000000000000000004d00000038600000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Time:

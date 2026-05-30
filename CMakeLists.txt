@@ -10,6 +10,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(ament_cmake REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(interactive_markers REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(pugixml REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -18,12 +19,14 @@ find_package(rviz_common REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(visualization_msgs REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(Qt5 REQUIRED COMPONENTS Widgets)
 
 add_library(${PROJECT_NAME} SHARED
   src/robot_state_publisher_runtime.cpp
   src/urdf_editor_state.cpp
+  src/urdf_tf_tree_marker_server.cpp
   src/widgets.cpp
 )
 
@@ -41,6 +44,7 @@ target_link_libraries(${PROJECT_NAME}
 ament_target_dependencies(${PROJECT_NAME}
   ament_index_cpp
   geometry_msgs
+  interactive_markers
   pluginlib
   rclcpp
   robot_state_publisher
@@ -48,6 +52,7 @@ ament_target_dependencies(${PROJECT_NAME}
   sensor_msgs
   std_msgs
   tf2_ros
+  visualization_msgs
 )
 
 pluginlib_export_plugin_description_file(rviz_common plugin_description.xml)
@@ -106,7 +111,7 @@ if(BUILD_TESTING)
   )
   if(TARGET test_panels)
     target_link_libraries(test_panels ${PROJECT_NAME} Qt5::Widgets)
-    ament_target_dependencies(test_panels rviz_common)
+    ament_target_dependencies(test_panels ament_index_cpp rviz_common)
   endif()
 
   ament_add_gtest(test_urdf_editor_state
@@ -121,12 +126,28 @@ if(BUILD_TESTING)
     target_link_libraries(test_urdf_editor_state ${PROJECT_NAME} Qt5::Widgets)
     ament_target_dependencies(test_urdf_editor_state rclcpp std_msgs)
   endif()
+
+  ament_add_gtest(test_urdf_tf_tree_marker_server
+    test/test_urdf_tf_tree_marker_server.cpp
+    SKIP_LINKING_MAIN_LIBRARIES
+    ENV
+      RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+      ROS_LOG_DIR=/tmp
+  )
+  if(TARGET test_urdf_tf_tree_marker_server)
+    target_link_libraries(test_urdf_tf_tree_marker_server ${PROJECT_NAME})
+    ament_target_dependencies(test_urdf_tf_tree_marker_server
+      rclcpp
+      visualization_msgs
+    )
+  endif()
 endif()
 
 ament_export_include_directories(include)
 ament_export_dependencies(
   ament_index_cpp
   geometry_msgs
+  interactive_markers
   pluginlib
   rclcpp
   robot_state_publisher
@@ -134,6 +155,7 @@ ament_export_dependencies(
   sensor_msgs
   std_msgs
   tf2_ros
+  visualization_msgs
 )
 
 ament_package()

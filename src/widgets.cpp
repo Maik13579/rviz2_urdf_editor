@@ -13,8 +13,12 @@
 #include <utility>
 
 #include <QBrush>
+#include <QColorDialog>
+#include <QDialog>
+#include <QDialogButtonBox>
 #include <QFileDialog>
 #include <QFontDatabase>
+#include <QFormLayout>
 #include <QHeaderView>
 #include <QHBoxLayout>
 #include <QMenu>
@@ -27,6 +31,7 @@
 #include <QScrollArea>
 #include <QScrollBar>
 #include <QSignalBlocker>
+#include <QSizePolicy>
 #include <QSyntaxHighlighter>
 #include <QTextBlock>
 #include <QTextCharFormat>
@@ -40,6 +45,8 @@
 #include <rviz_common/display_group.hpp>
 #include <rviz_common/properties/property.hpp>
 #include <rviz_common/ros_integration/ros_node_abstraction_iface.hpp>
+
+#include "rviz2_urdf_editor/urdf_tf_tree_marker_server.hpp"
 
 namespace rviz2_urdf_editor {
 namespace {
@@ -74,7 +81,12 @@ YAML::Node normalizeConfig(const YAML::Node &config) {
   normalized["ignore_timestamp"] = false;
   normalized["auto_publish"] = true;
   normalized["mesh_alpha_multiplier"] = 1.0;
+  normalized["tf_alpha_multiplier"] = 1.0;
+  normalized["tf_marker_scale"] = 1.0;
+  normalized["tf_axis_length"] = 0.18;
+  normalized["tf_joint_thickness"] = 1.0;
   normalized["highlight_color"] = "#ffd10d";
+  normalized["tf_joint_color"] = "#f2f2f2";
   normalized["topic"] = "/joint_states";
   if (config.IsMap()) {
     for (const auto &entry : config) {
@@ -188,7 +200,8 @@ std::string compactEditorStatus(const UrdfXmlEditorDocument &document) {
   return "Editor is valid.";
 }
 
-void setRobotModelAlpha(rviz_common::DisplayGroup *group, const double alpha) {
+void setRobotModelAlpha(rviz_common::DisplayGroup *group, const double alpha,
+                        bool &disabled_for_alpha) {
   if (group == nullptr) {
     return;
   }
@@ -199,9 +212,19 @@ void setRobotModelAlpha(rviz_common::DisplayGroup *group, const double alpha) {
     }
     if (display->getClassId() == "rviz_default_plugins/RobotModel") {
       display->subProp("Alpha")->setValue(alpha);
+      if (alpha <= 0.0001) {
+        // Disable the invisible RobotModel so TF markers inside it can receive
+        // right-click events.
+        if (display->isEnabled()) {
+          display->setEnabled(false);
+        }
+        disabled_for_alpha = true;
+      } else if (disabled_for_alpha && !display->isEnabled()) {
+        display->setEnabled(true);
+      }
     }
     if (auto *child_group = group->getGroupAt(i)) {
-      setRobotModelAlpha(child_group, alpha);
+      setRobotModelAlpha(child_group, alpha, disabled_for_alpha);
     }
   }
 }
@@ -823,10 +846,12 @@ UrdfXacroFileWidget::UrdfXacroFileWidget() {
   auto *button_row = new QHBoxLayout();
   auto *browse = new QPushButton("Browse", root_widget_);
   auto *load = new QPushButton("Load", root_widget_);
+  auto *settings = new QPushButton("Settings", root_widget_);
   auto *save = new QPushButton("Save", root_widget_);
   button_row->addWidget(browse);
   button_row->addWidget(load);
   button_row->addStretch(1);
+  button_row->addWidget(settings);
   button_row->addWidget(save);
   layout->addLayout(button_row);
 
@@ -838,6 +863,15 @@ UrdfXacroFileWidget::UrdfXacroFileWidget() {
   alpha_row->addWidget(mesh_alpha_label_);
   alpha_row->addWidget(mesh_alpha_slider_, 1);
   layout->addLayout(alpha_row);
+
+  auto *tf_alpha_row = new QHBoxLayout();
+  tf_alpha_label_ = new QLabel("TF Alpha 100%", root_widget_);
+  tf_alpha_slider_ = new QSlider(Qt::Horizontal, root_widget_);
+  tf_alpha_slider_->setRange(0, 100);
+  tf_alpha_slider_->setValue(100);
+  tf_alpha_row->addWidget(tf_alpha_label_);
+  tf_alpha_row->addWidget(tf_alpha_slider_, 1);
+  layout->addLayout(tf_alpha_row);
 
   QObject::connect(browse, &QPushButton::clicked, [this]() {
     const auto path = QFileDialog::getOpenFileName(
@@ -860,6 +894,8 @@ UrdfXacroFileWidget::UrdfXacroFileWidget() {
     UrdfEditorState::instance().save();
     syncFromState();
   });
+  QObject::connect(settings, &QPushButton::clicked,
+                   [this]() { openSettingsDialog(); });
   QObject::connect(mesh_alpha_slider_, &QSlider::valueChanged, [this](int value) {
     mesh_alpha_multiplier_ = std::clamp(value / 100.0, 0.0, 1.0);
     mesh_alpha_label_->setText(QString("Mesh Alpha %1%").arg(value));
@@ -870,6 +906,15 @@ UrdfXacroFileWidget::UrdfXacroFileWidget() {
   });
   QObject::connect(mesh_alpha_slider_, &QSlider::sliderReleased,
                    [this]() { commitMeshAlpha(); });
+  QObject::connect(tf_alpha_slider_, &QSlider::valueChanged, [this](int value) {
+    tf_alpha_multiplier_ = std::clamp(value / 100.0, 0.0, 1.0);
+    tf_alpha_label_->setText(QString("TF Alpha %1%").arg(value));
+    if (!tf_alpha_slider_->isSliderDown()) {
+      commitTfAlpha();
+    }
+  });
+  QObject::connect(tf_alpha_slider_, &QSlider::sliderReleased,
+                   [this]() { commitTfAlpha(); });
 }
 
 void UrdfXacroFileWidget::setDisplayContext(
@@ -883,11 +928,141 @@ void UrdfXacroFileWidget::updateRobotModelAlpha() {
     return;
   }
   setRobotModelAlpha(display_context_->getRootDisplayGroup(),
-                     mesh_alpha_multiplier_);
+                     mesh_alpha_multiplier_,
+                     robot_model_disabled_for_alpha_);
+  if (mesh_alpha_multiplier_ > 0.0001) {
+    robot_model_disabled_for_alpha_ = false;
+  }
 }
 
 void UrdfXacroFileWidget::commitMeshAlpha() {
   UrdfEditorState::instance().setMeshAlphaMultiplier(mesh_alpha_multiplier_);
+}
+
+void UrdfXacroFileWidget::commitTfAlpha() {
+  UrdfEditorState::instance().setTfAlphaMultiplier(tf_alpha_multiplier_);
+}
+
+void UrdfXacroFileWidget::commitTfMarkerSettings() {
+  UrdfEditorState::instance().setTfMarkerSettings(
+      tf_marker_scale_, tf_axis_length_, tf_joint_thickness_);
+}
+
+void UrdfXacroFileWidget::commitHighlightColor() {
+  UrdfEditorState::instance().setHighlightColor(
+      highlight_color_.name(QColor::HexRgb).toStdString());
+}
+
+void UrdfXacroFileWidget::commitTfJointColor() {
+  UrdfEditorState::instance().setTfJointColor(
+      tf_joint_color_.name(QColor::HexRgb).toStdString());
+}
+
+void UrdfXacroFileWidget::openSettingsDialog() {
+  QDialog dialog(root_widget_);
+  dialog.setWindowTitle("URDF Editor Settings");
+  dialog.setMinimumWidth(340);
+  auto *layout = new QFormLayout(&dialog);
+  layout->setLabelAlignment(Qt::AlignRight | Qt::AlignVCenter);
+  layout->setFormAlignment(Qt::AlignLeft | Qt::AlignTop);
+  layout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+  layout->setHorizontalSpacing(14);
+  layout->setVerticalSpacing(10);
+
+  const auto configure_spin = [](QDoubleSpinBox *spin) {
+    spin->setMinimumWidth(120);
+    spin->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    spin->setAlignment(Qt::AlignRight);
+  };
+
+  auto *marker_scale = new QDoubleSpinBox(&dialog);
+  marker_scale->setRange(0.2, 3.0);
+  marker_scale->setSingleStep(0.05);
+  marker_scale->setDecimals(2);
+  marker_scale->setValue(tf_marker_scale_);
+  configure_spin(marker_scale);
+  layout->addRow("Marker Scale", marker_scale);
+
+  auto *axis_length = new QDoubleSpinBox(&dialog);
+  axis_length->setRange(0.04, 1.0);
+  axis_length->setSingleStep(0.01);
+  axis_length->setDecimals(2);
+  axis_length->setSuffix(" m");
+  axis_length->setValue(tf_axis_length_);
+  configure_spin(axis_length);
+  layout->addRow("Axis Length", axis_length);
+
+  auto *joint_thickness = new QDoubleSpinBox(&dialog);
+  joint_thickness->setRange(0.2, 3.0);
+  joint_thickness->setSingleStep(0.05);
+  joint_thickness->setDecimals(2);
+  joint_thickness->setValue(tf_joint_thickness_);
+  configure_spin(joint_thickness);
+  layout->addRow("Joint Thickness", joint_thickness);
+
+  const auto update_color_button = [](QPushButton *button, const QColor &color) {
+    button->setText(color.name(QColor::HexRgb));
+    button->setStyleSheet(
+        QString("QPushButton { background-color: %1; color: %2; "
+                "border: 1px solid #666666; padding: 3px 8px; }")
+            .arg(color.name(QColor::HexRgb),
+                 color.lightness() < 128 ? "#ffffff" : "#202020"));
+  };
+  const auto make_color_button = [&](QColor &selected_color,
+                                     const QString &title) {
+    auto *button = new QPushButton(selected_color.name(QColor::HexRgb), &dialog);
+    button->setMinimumWidth(120);
+    button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    update_color_button(button, selected_color);
+    QObject::connect(button, &QPushButton::clicked, [&dialog, button,
+                                                     &selected_color,
+                                                     title,
+                                                     update_color_button]() {
+      const auto color = QColorDialog::getColor(selected_color, &dialog, title);
+      if (color.isValid()) {
+        selected_color = color;
+        update_color_button(button, selected_color);
+      }
+    });
+    return button;
+  };
+
+  QColor selected_highlight = highlight_color_;
+  auto *highlight_button =
+      make_color_button(selected_highlight, "Highlight Color");
+  layout->addRow("Highlight Color", highlight_button);
+
+  QColor selected_joint_color = tf_joint_color_;
+  auto *joint_color_button =
+      make_color_button(selected_joint_color, "Joint Color");
+  layout->addRow("Joint Color", joint_color_button);
+
+  auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok |
+                                           QDialogButtonBox::Cancel,
+                                       &dialog);
+  layout->addRow(buttons);
+  QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog,
+                   &QDialog::accept);
+  QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog,
+                   &QDialog::reject);
+
+  if (dialog.exec() != QDialog::Accepted) {
+    return;
+  }
+
+  tf_marker_scale_ = marker_scale->value();
+  tf_axis_length_ = axis_length->value();
+  tf_joint_thickness_ = joint_thickness->value();
+  highlight_color_ = selected_highlight;
+  tf_joint_color_ = selected_joint_color;
+  commitTfMarkerSettings();
+  commitHighlightColor();
+  commitTfJointColor();
+  if (root_widget_ != nullptr) {
+    if (auto *panel = qobject_cast<rviz_common::Panel *>(root_widget_->window())) {
+      Q_EMIT panel->configChanged();
+    }
+  }
 }
 
 void UrdfXacroFileWidget::configure(const YAML::Node &config) {
@@ -912,10 +1087,56 @@ void UrdfXacroFileWidget::configure(const YAML::Node &config) {
       QString("Mesh Alpha %1%").arg(mesh_alpha_slider_->value()));
   updateRobotModelAlpha();
   commitMeshAlpha();
+  tf_alpha_multiplier_ =
+      std::clamp(normalized["tf_alpha_multiplier"].as<double>(), 0.0, 1.0);
+  tf_alpha_slider_->setValue(
+      static_cast<int>(std::round(tf_alpha_multiplier_ * 100.0)));
+  tf_alpha_label_->setText(QString("TF Alpha %1%").arg(tf_alpha_slider_->value()));
+  commitTfAlpha();
+  tf_marker_scale_ =
+      std::clamp(normalized["tf_marker_scale"].as<double>(), 0.2, 3.0);
+  tf_axis_length_ =
+      std::clamp(normalized["tf_axis_length"].as<double>(), 0.04, 1.0);
+  tf_joint_thickness_ =
+      std::clamp(normalized["tf_joint_thickness"].as<double>(), 0.2, 3.0);
+  commitTfMarkerSettings();
+  highlight_color_ =
+      QColor(QString::fromStdString(normalized["highlight_color"].as<std::string>()));
+  if (!highlight_color_.isValid()) {
+    highlight_color_ = QColor("#ffd10d");
+  }
+  commitHighlightColor();
+  tf_joint_color_ =
+      QColor(QString::fromStdString(normalized["tf_joint_color"].as<std::string>()));
+  if (!tf_joint_color_.isValid()) {
+    tf_joint_color_ = QColor("#f2f2f2");
+  }
+  commitTfJointColor();
   if (!hasUrdfStateWatchers()) {
     watchUrdfState([this]() { syncFromState(); });
   }
   syncFromState();
+}
+
+YAML::Node UrdfXacroFileWidget::currentConfig() const {
+  YAML::Node config = getDefaultConfig();
+  config["path"] = path_edit_->text().toStdString();
+  config["robot_description_topic"] = publish_topic_;
+  config["rsp_node_name"] = rsp_settings_.node_name;
+  config["rsp_namespace"] = rsp_settings_.node_namespace;
+  config["joint_states_topic"] = rsp_settings_.joint_states_topic;
+  config["frame_prefix"] = rsp_settings_.frame_prefix;
+  config["publish_frequency"] = rsp_settings_.publish_frequency;
+  config["ignore_timestamp"] = rsp_settings_.ignore_timestamp;
+  config["auto_publish"] = auto_publish_;
+  config["mesh_alpha_multiplier"] = mesh_alpha_multiplier_;
+  config["tf_alpha_multiplier"] = tf_alpha_multiplier_;
+  config["tf_marker_scale"] = tf_marker_scale_;
+  config["tf_axis_length"] = tf_axis_length_;
+  config["tf_joint_thickness"] = tf_joint_thickness_;
+  config["highlight_color"] = highlight_color_.name(QColor::HexRgb).toStdString();
+  config["tf_joint_color"] = tf_joint_color_.name(QColor::HexRgb).toStdString();
+  return config;
 }
 
 std::string UrdfXacroFileWidget::type() const {
@@ -937,6 +1158,12 @@ YAML::Node UrdfXacroFileWidget::getDefaultConfig() const {
   config["ignore_timestamp"] = false;
   config["auto_publish"] = true;
   config["mesh_alpha_multiplier"] = 1.0;
+  config["tf_alpha_multiplier"] = 1.0;
+  config["tf_marker_scale"] = 1.0;
+  config["tf_axis_length"] = 0.18;
+  config["tf_joint_thickness"] = 1.0;
+  config["highlight_color"] = "#ffd10d";
+  config["tf_joint_color"] = "#f2f2f2";
   return config;
 }
 std::vector<ConfigField> UrdfXacroFileWidget::getConfigFields() const {
@@ -955,6 +1182,18 @@ std::vector<ConfigField> UrdfXacroFileWidget::getConfigFields() const {
                           1000.0, 1.0, 1, true),
           makeDoubleField("mesh_alpha_multiplier", "Mesh Alpha Multiplier", 1.0,
                           0.0, 1.0, 0.05, 2, true),
+          makeDoubleField("tf_alpha_multiplier", "TF Alpha Multiplier", 1.0,
+                          0.0, 1.0, 0.05, 2, true),
+          makeDoubleField("tf_marker_scale", "TF Marker Scale", 1.0, 0.2,
+                          3.0, 0.05, 2, true),
+          makeDoubleField("tf_axis_length", "TF Axis Length", 0.18, 0.04,
+                          1.0, 0.01, 2, true),
+          makeDoubleField("tf_joint_thickness", "TF Joint Thickness", 1.0,
+                          0.2, 3.0, 0.05, 2, true),
+          makeColorField("highlight_color", "Highlight Color", "#ffd10d", true,
+                         "Color used for selected TF markers."),
+          makeColorField("tf_joint_color", "TF Joint Color", "#f2f2f2", true,
+                         "Color used for unselected joint TF markers."),
           makeBoolField("ignore_timestamp", "Ignore Timestamp", "", false),
           makeBoolField("auto_publish", "Auto Publish",
                         "Publish after successful load or save.", false)};
@@ -971,7 +1210,17 @@ bool UrdfXacroFileWidget::validateConfig(const YAML::Node &config,
          requireDoubleRange(normalized, "publish_frequency", 0.1, 1000.0,
                             error) &&
          requireDoubleRange(normalized, "mesh_alpha_multiplier", 0.0, 1.0,
-                            error);
+                            error) &&
+         requireDoubleRange(normalized, "tf_alpha_multiplier", 0.0, 1.0,
+                            error) &&
+         requireDoubleRange(normalized, "tf_marker_scale", 0.2, 3.0,
+                            error) &&
+         requireDoubleRange(normalized, "tf_axis_length", 0.04, 1.0,
+                            error) &&
+         requireDoubleRange(normalized, "tf_joint_thickness", 0.2, 3.0,
+                            error) &&
+         requireNonEmptyString(normalized, "highlight_color", error) &&
+         requireNonEmptyString(normalized, "tf_joint_color", error);
 }
 
 void UrdfXacroFileWidget::syncFromState() {
@@ -1877,6 +2126,25 @@ UrdfEditorPanel::UrdfEditorPanel(QWidget *parent) : rviz_common::Panel(parent) {
   layout->addWidget(xml_editor_widget_.widget(), 1);
 }
 
+void UrdfEditorPanel::load(const rviz_common::Config &config) {
+  rviz_common::Panel::load(config);
+  configureFileWidgetFromConfig(config.mapGetChild("File Widget"));
+}
+
+void UrdfEditorPanel::save(rviz_common::Config config) const {
+  rviz_common::Panel::save(config);
+  auto file_config = config.mapMakeChild("File Widget");
+  const auto current = file_widget_.currentConfig();
+  for (const auto &entry : current) {
+    const auto key = QString::fromStdString(entry.first.as<std::string>());
+    const auto value = entry.second;
+    if (value.IsScalar()) {
+      file_config.mapSetValue(
+          key, QString::fromStdString(value.as<std::string>()));
+    }
+  }
+}
+
 void UrdfEditorPanel::onInitialize() {
   rclcpp::Node::SharedPtr node;
   auto *display_context = getDisplayContext();
@@ -1888,12 +2156,59 @@ void UrdfEditorPanel::onInitialize() {
   initializeWidgets(node, display_context);
 }
 
+void UrdfEditorPanel::configureFileWidgetFromConfig(
+    const rviz_common::Config &config) {
+  auto file_config = file_widget_.getDefaultConfig();
+  if (!config.isValid()) {
+    file_widget_.configure(file_config);
+    return;
+  }
+
+  const auto read_string = [&](const char *key) {
+    QString value;
+    if (config.mapGetString(key, &value)) {
+      file_config[key] = value.toStdString();
+    }
+  };
+  const auto read_float = [&](const char *key) {
+    float value = 0.0F;
+    if (config.mapGetFloat(key, &value)) {
+      file_config[key] = static_cast<double>(value);
+    }
+  };
+  const auto read_bool = [&](const char *key) {
+    bool value = false;
+    if (config.mapGetBool(key, &value)) {
+      file_config[key] = value;
+    }
+  };
+
+  read_string("path");
+  read_string("robot_description_topic");
+  read_string("rsp_node_name");
+  read_string("rsp_namespace");
+  read_string("joint_states_topic");
+  read_string("frame_prefix");
+  read_string("highlight_color");
+  read_string("tf_joint_color");
+  read_float("publish_frequency");
+  read_bool("ignore_timestamp");
+  read_bool("auto_publish");
+  read_float("mesh_alpha_multiplier");
+  read_float("tf_alpha_multiplier");
+  read_float("tf_marker_scale");
+  read_float("tf_axis_length");
+  read_float("tf_joint_thickness");
+  file_widget_.configure(file_config);
+}
+
 void UrdfEditorPanel::initializeWidgets(
     const rclcpp::Node::SharedPtr &node,
     rviz_common::DisplayContext *display_context) {
   file_widget_.initialize(node, "urdf_file_widget");
+  UrdfTfTreeMarkerServer::instance().start(node);
   file_widget_.setDisplayContext(display_context);
-  file_widget_.configure(file_widget_.getDefaultConfig());
+  file_widget_.configure(file_widget_.currentConfig());
   xml_editor_widget_.initialize(node, "urdf_xml_editor_widget");
   xml_editor_widget_.configure(xml_editor_widget_.getDefaultConfig());
 }

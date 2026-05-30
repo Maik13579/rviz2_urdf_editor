@@ -1058,6 +1058,7 @@ bool UrdfEditorState::loadFile(
     state_.xacro_args = xacro_args;
     state_.dirty = false;
     state_.selected_link.clear();
+    state_.selected_joint.clear();
     state_.selected_mesh = {};
     state_.hidden_geometry_links.clear();
     if (!rebuildLocked()) {
@@ -1672,6 +1673,20 @@ void UrdfEditorState::setHighlightColor(const std::string &color) {
   }
 }
 
+void UrdfEditorState::setTfJointColor(const std::string &color) {
+  bool changed = false;
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (!color.empty() && state_.tf_joint_color != color) {
+      state_.tf_joint_color = color;
+      changed = true;
+    }
+  }
+  if (changed) {
+    notifyChanged();
+  }
+}
+
 void UrdfEditorState::setMeshAlphaMultiplier(const double multiplier) {
   bool changed = false;
   std::string robot_description;
@@ -1691,6 +1706,46 @@ void UrdfEditorState::setMeshAlphaMultiplier(const double multiplier) {
   if (!robot_description.empty()) {
     RobotStatePublisherRuntime::instance().restartWithRobotDescription(
         robot_description);
+  }
+  if (changed) {
+    notifyChanged();
+  }
+}
+
+void UrdfEditorState::setTfAlphaMultiplier(const double multiplier) {
+  bool changed = false;
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    const auto clamped = std::clamp(multiplier, 0.0, 1.0);
+    if (std::abs(state_.tf_alpha_multiplier - clamped) < 0.0001) {
+      return;
+    }
+    state_.tf_alpha_multiplier = clamped;
+    changed = true;
+  }
+  if (changed) {
+    notifyChanged();
+  }
+}
+
+void UrdfEditorState::setTfMarkerSettings(const double marker_scale,
+                                          const double axis_length,
+                                          const double joint_thickness) {
+  bool changed = false;
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    const auto clamped_marker_scale = std::clamp(marker_scale, 0.2, 3.0);
+    const auto clamped_axis_length = std::clamp(axis_length, 0.04, 1.0);
+    const auto clamped_joint_thickness = std::clamp(joint_thickness, 0.2, 3.0);
+    if (std::abs(state_.tf_marker_scale - clamped_marker_scale) < 0.0001 &&
+        std::abs(state_.tf_axis_length - clamped_axis_length) < 0.0001 &&
+        std::abs(state_.tf_joint_thickness - clamped_joint_thickness) < 0.0001) {
+      return;
+    }
+    state_.tf_marker_scale = clamped_marker_scale;
+    state_.tf_axis_length = clamped_axis_length;
+    state_.tf_joint_thickness = clamped_joint_thickness;
+    changed = true;
   }
   if (changed) {
     notifyChanged();
@@ -1768,8 +1823,10 @@ void UrdfEditorState::setSelectedLink(const std::string &link_name) {
     std::lock_guard<std::mutex> lock(mutex_);
     const bool deselect = !link_name.empty() && state_.selected_link == link_name;
     const auto next_link = deselect ? std::string{} : link_name;
-    if (state_.selected_link != next_link || !state_.selected_mesh.uri.empty()) {
+    if (state_.selected_link != next_link || !state_.selected_joint.empty() ||
+        !state_.selected_mesh.uri.empty()) {
       state_.selected_link = next_link;
+      state_.selected_joint.clear();
       state_.selected_mesh = {};
       if (state_.expanded_urdf.empty()) {
         ok = true;
@@ -1777,6 +1834,29 @@ void UrdfEditorState::setSelectedLink(const std::string &link_name) {
         ok = publishRobotDescriptionLocked(effectiveRobotDescriptionLocked());
       } else {
         ok = publishRobotDescriptionLocked(activeRobotDescriptionLocked());
+      }
+      changed = true;
+    }
+  }
+  if (changed || !ok) {
+    notifyChanged();
+  }
+}
+
+void UrdfEditorState::setSelectedJoint(const std::string &joint_name) {
+  bool changed = false;
+  bool ok = true;
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    const bool deselect = !joint_name.empty() && state_.selected_joint == joint_name;
+    const auto next_joint = deselect ? std::string{} : joint_name;
+    if (state_.selected_joint != next_joint || !state_.selected_link.empty() ||
+        !state_.selected_mesh.uri.empty()) {
+      state_.selected_joint = next_joint;
+      state_.selected_link.clear();
+      state_.selected_mesh = {};
+      if (!state_.expanded_urdf.empty()) {
+        ok = publishRobotDescriptionLocked(effectiveRobotDescriptionLocked());
       }
       changed = true;
     }
@@ -1800,6 +1880,8 @@ bool UrdfEditorState::toggleSelectedMesh(const UrdfMeshSummary &mesh) {
       }
     } else {
       state_.selected_mesh = mesh;
+      state_.selected_link.clear();
+      state_.selected_joint.clear();
       ok = publishRobotDescriptionLocked(activeRobotDescriptionLocked());
     }
   }

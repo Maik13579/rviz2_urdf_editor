@@ -26,6 +26,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <rviz_common/display_context.hpp>
+#include <rviz_common/config.hpp>
 #include <rviz_common/panel.hpp>
 #include <sensor_msgs/msg/joint_state.hpp>
 #include <yaml-cpp/yaml.h>
@@ -74,6 +75,7 @@ public:
   UrdfXacroFileWidget();
   void setDisplayContext(rviz_common::DisplayContext *display_context);
   void configure(const YAML::Node &config);
+  YAML::Node currentConfig() const;
   std::string type() const;
   std::string displayName() const;
   std::string description() const;
@@ -87,14 +89,28 @@ private:
   void syncFromState();
   void updateRobotModelAlpha();
   void commitMeshAlpha();
+  void commitTfAlpha();
+  void commitTfMarkerSettings();
+  void commitHighlightColor();
+  void commitTfJointColor();
+  void openSettingsDialog();
 
   QLineEdit *path_edit_{nullptr};
   QSlider *mesh_alpha_slider_{nullptr};
   QLabel *mesh_alpha_label_{nullptr};
+  QSlider *tf_alpha_slider_{nullptr};
+  QLabel *tf_alpha_label_{nullptr};
   std::string publish_topic_{"/robot_description"};
   RobotStatePublisherSettings rsp_settings_;
   bool auto_publish_{false};
   double mesh_alpha_multiplier_{1.0};
+  double tf_alpha_multiplier_{1.0};
+  double tf_marker_scale_{1.0};
+  double tf_axis_length_{0.18};
+  double tf_joint_thickness_{1.0};
+  QColor highlight_color_{"#ffd10d"};
+  QColor tf_joint_color_{"#f2f2f2"};
+  bool robot_model_disabled_for_alpha_{false};
 };
 
 class UrdfDependencyTreeWidget : public WidgetBase {
@@ -244,10 +260,13 @@ class UrdfEditorPanel : public rviz_common::Panel {
 public:
   explicit UrdfEditorPanel(QWidget *parent = nullptr);
   void onInitialize() override;
+  void load(const rviz_common::Config &config) override;
+  void save(rviz_common::Config config) const override;
 
 private:
   void initializeWidgets(const rclcpp::Node::SharedPtr &node,
                          rviz_common::DisplayContext *display_context);
+  void configureFileWidgetFromConfig(const rviz_common::Config &config);
 
   UrdfXacroFileWidget file_widget_;
   UrdfXmlEditorWidget xml_editor_widget_;

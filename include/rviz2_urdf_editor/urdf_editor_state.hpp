@@ -68,9 +68,15 @@ struct UrdfEditorSnapshot {
   std::string status{"No URDF loaded."};
   std::string last_error;
   std::string selected_link;
+  std::string selected_joint;
   UrdfMeshSummary selected_mesh;
   std::string highlight_color{"#ffd10d"};
+  std::string tf_joint_color{"#f2f2f2"};
   double mesh_alpha_multiplier{1.0};
+  double tf_alpha_multiplier{1.0};
+  double tf_marker_scale{1.0};
+  double tf_axis_length{0.18};
+  double tf_joint_thickness{1.0};
   std::set<std::string> hidden_geometry_links;
   std::uint64_t revision{0};
 };
@@ -136,10 +142,15 @@ public:
   void setPublishTopic(const std::string &topic);
   bool publishNow();
   void setHighlightColor(const std::string &color);
+  void setTfJointColor(const std::string &color);
   void setMeshAlphaMultiplier(double multiplier);
+  void setTfAlphaMultiplier(double multiplier);
+  void setTfMarkerSettings(double marker_scale, double axis_length,
+                           double joint_thickness);
   void setLinkGeometryVisible(const std::string &link_name, bool visible);
   void setAllLinkGeometryVisible(bool visible);
   void setSelectedLink(const std::string &link_name);
+  void setSelectedJoint(const std::string &joint_name);
   bool toggleSelectedMesh(const UrdfMeshSummary &mesh);
   std::uint64_t addChangeCallback(ChangeCallback callback);
   void removeChangeCallback(std::uint64_t callback_id);
