@@ -130,7 +130,6 @@ private:
   void refresh();
   void validateCurrentXml();
   void applyCurrentXml();
-  void reloadCurrentXml();
   QLineEdit *title_edit_{nullptr};
   QLabel *status_label_{nullptr};
   QPlainTextEdit *editor_{nullptr};
@@ -139,7 +138,6 @@ private:
   QPushButton *undo_button_{nullptr};
   QPushButton *redo_button_{nullptr};
   QPushButton *apply_button_{nullptr};
-  QPushButton *reload_button_{nullptr};
   std::uint64_t seen_document_revision_{0};
   std::string loaded_editor_text_;
   bool updating_from_state_{false};

@@ -139,70 +139,9 @@ ConfigField makeColorField(const char *, const char *, const char *, bool,
 
 std::string formatXmlWithTwoSpaceIndent(const std::string &xml,
                                         const bool whole_file) {
-  const auto preserve_blank_lines = [](const std::string &original,
-                                       std::string formatted) {
-    std::size_t formatted_search_pos = 0;
-    for (std::size_t line_begin = 0; line_begin < original.size();) {
-      const auto line_end = original.find('\n', line_begin);
-      const auto line =
-          original.substr(line_begin, line_end == std::string::npos
-                                          ? std::string::npos
-                                          : line_end - line_begin);
-      const auto first_non_space = line.find_first_not_of(" \t\r");
-      if (first_non_space == std::string::npos) {
-        std::size_t blank_line_count = 0;
-        std::size_t next_line_begin = line_begin;
-        while (next_line_begin < original.size()) {
-          const auto blank_line_end = original.find('\n', next_line_begin);
-          const auto blank_line = original.substr(
-              next_line_begin, blank_line_end == std::string::npos
-                                   ? std::string::npos
-                                   : blank_line_end - next_line_begin);
-          if (blank_line.find_first_not_of(" \t\r") != std::string::npos) {
-            break;
-          }
-          ++blank_line_count;
-          if (blank_line_end == std::string::npos) {
-            next_line_begin = original.size();
-            break;
-          }
-          next_line_begin = blank_line_end + 1;
-        }
-        const auto next_line_end = original.find('\n', next_line_begin);
-        const auto next_line =
-            original.substr(next_line_begin,
-                            next_line_end == std::string::npos
-                                ? std::string::npos
-                                : next_line_end - next_line_begin);
-        const auto next_non_space = next_line.find_first_not_of(" \t\r");
-        if (next_non_space != std::string::npos &&
-            next_line[next_non_space] == '<') {
-          const auto next_tag = next_line.substr(next_non_space);
-          const auto formatted_next =
-              formatted.find(next_tag, formatted_search_pos);
-          const auto formatted_line_begin =
-              formatted_next == std::string::npos
-                  ? std::string::npos
-                  : formatted.rfind('\n', formatted_next);
-          if (formatted_line_begin != std::string::npos &&
-              (formatted_line_begin == 0 ||
-               formatted[formatted_line_begin - 1] != '\n')) {
-            formatted.insert(formatted_line_begin + 1,
-                             std::string(blank_line_count, '\n'));
-            formatted_search_pos =
-                formatted_next + blank_line_count + next_tag.size();
-          }
-        }
-        line_begin = next_line_begin;
-        continue;
-      }
-      if (line_end == std::string::npos) {
-        break;
-      }
-      line_begin = line_end + 1;
-    }
-    return formatted;
-  };
+  if (xml.find('\n') != std::string::npos) {
+    return xml;
+  }
 
   pugi::xml_document doc;
   const auto parse_options =
@@ -221,7 +160,7 @@ std::string formatXmlWithTwoSpaceIndent(const std::string &xml,
   std::ostringstream output;
   if (whole_file) {
     doc.save(output, "  ", pugi::format_default, pugi::encoding_utf8);
-    return preserve_blank_lines(xml, output.str());
+    return output.str();
   }
 
   bool first = true;
@@ -235,7 +174,7 @@ std::string formatXmlWithTwoSpaceIndent(const std::string &xml,
     child.print(output, "  ", pugi::format_default, pugi::encoding_utf8);
     first = false;
   }
-  return preserve_blank_lines(xml, output.str());
+  return output.str();
 }
 
 std::string compactEditorStatus(const UrdfXmlEditorDocument &document) {
@@ -1117,13 +1056,11 @@ UrdfXmlEditorWidget::UrdfXmlEditorWidget() {
   line_wrap_check_->setToolTip("Wrap long XML lines to the editor width.");
   auto *validate_button = new QPushButton("Validate", root_widget_);
   apply_button_ = new QPushButton("Apply", root_widget_);
-  reload_button_ = new QPushButton("Reload", root_widget_);
   button_row->addWidget(undo_button_);
   button_row->addWidget(redo_button_);
   button_row->addWidget(line_wrap_check_);
   button_row->addWidget(validate_button);
   button_row->addStretch(1);
-  button_row->addWidget(reload_button_);
   button_row->addWidget(apply_button_);
   layout->addLayout(button_row);
 
@@ -1148,8 +1085,6 @@ UrdfXmlEditorWidget::UrdfXmlEditorWidget() {
   editor_->setLineWrapMode(QPlainTextEdit::NoWrap);
   QObject::connect(apply_button_, &QPushButton::clicked,
                    [this]() { applyCurrentXml(); });
-  QObject::connect(reload_button_, &QPushButton::clicked,
-                   [this]() { reloadCurrentXml(); });
   QObject::connect(editor_, &QPlainTextEdit::textChanged, [this]() {
     if (!updating_from_state_) {
       const auto xml = editor_->toPlainText().toStdString();
@@ -1237,7 +1172,6 @@ void UrdfXmlEditorWidget::refresh() {
   }
   editor_->setReadOnly(!document.editable);
   apply_button_->setEnabled(document.editable);
-  reload_button_->setEnabled(document.editable || !document.xml.empty());
   status_label_->setText(QString::fromStdString(document.status));
   updating_from_state_ = false;
   validateCurrentXml();
@@ -1312,10 +1246,6 @@ void UrdfXmlEditorWidget::applyCurrentXml() {
     status_label_->setText(QString::fromStdString(
         UrdfEditorState::instance().snapshot().last_error));
   }
-}
-
-void UrdfXmlEditorWidget::reloadCurrentXml() {
-  UrdfEditorState::instance().reloadXmlEditorDocument();
 }
 
 UrdfModelTreeWidget::UrdfModelTreeWidget() {

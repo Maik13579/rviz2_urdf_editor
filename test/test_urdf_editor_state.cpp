@@ -813,6 +813,17 @@ TEST(UrdfEditorState, EditorWidgetTogglesLineWrap) {
   EXPECT_EQ(editor->lineWrapMode(), QPlainTextEdit::NoWrap);
 }
 
+TEST(UrdfEditorState, EditorWidgetDoesNotShowReloadButton) {
+  auto node = std::make_shared<rclcpp::Node>("urdf_editor_no_reload_test");
+  rviz2_urdf_editor::UrdfXmlEditorWidget editor_widget;
+  editor_widget.initialize(node, "xml_editor_no_reload");
+  editor_widget.configure(editor_widget.getDefaultConfig());
+
+  for (auto *button : editor_widget.widget()->findChildren<QPushButton *>()) {
+    EXPECT_NE(button->text(), "Reload");
+  }
+}
+
 TEST(UrdfEditorState, EditorWidgetFormatsXmlWithTwoSpaceIndentOnApply) {
   auto node = std::make_shared<rclcpp::Node>("urdf_editor_format_test");
   const auto path = writeTempFile("dashboard_format.urdf", kSimpleUrdf);
@@ -874,7 +885,7 @@ TEST(UrdfEditorState, EditorWidgetPreservesBlankLinesOnApply) {
   }();
   ASSERT_NE(apply_button, nullptr);
 
-  editor->setPlainText(
+  const auto edited = std::string(
       "<robot name=\"blank_lines_bot\">\n"
       "  <link name=\"base_link\" />\n"
       "\n"
@@ -887,15 +898,13 @@ TEST(UrdfEditorState, EditorWidgetPreservesBlankLinesOnApply) {
       "    <child link=\"arm_link\" />\n"
       "  </joint>\n"
       "</robot>");
+  editor->setPlainText(QString::fromStdString(edited));
   QApplication::processEvents();
   apply_button->click();
   QApplication::processEvents();
 
   const auto formatted = editor->toPlainText().toStdString();
-  EXPECT_NE(formatted.find("<link name=\"base_link\" />\n\n  <link"),
-            std::string::npos);
-  EXPECT_NE(formatted.find("<parent link=\"base_link\" />\n\n\n    <child"),
-            std::string::npos);
+  EXPECT_EQ(formatted, edited);
   EXPECT_EQ(state.snapshot().model.robot_name, "blank_lines_bot");
 }
 
