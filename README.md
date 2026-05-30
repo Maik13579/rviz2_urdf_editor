@@ -10,17 +10,7 @@ and save the changed source files only when explicitly requested.
 
 ## Quick Start
 
-Build the package from the workspace root:
-
 ```bash
-source /opt/ros/${ROS_DISTRO}/setup.bash
-colcon build --base-paths /root/ros2_ws/external/rviz2_urdf_editor --packages-select rviz2_urdf_editor
-```
-
-Run the bundled editor RViz configuration:
-
-```bash
-source /root/ros2_ws/install/setup.bash
 ros2 launch rviz2_urdf_editor editor.launch.py
 ```
 
