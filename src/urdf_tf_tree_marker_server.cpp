@@ -232,6 +232,9 @@ UrdfTfTreeMarkerServer::buildMarkers(
     const std::map<std::string, geometry_msgs::msg::TransformStamped>
         &joint_transforms) {
   std::vector<visualization_msgs::msg::InteractiveMarker> markers;
+  if (snapshot.tf_alpha_multiplier <= 0.0001) {
+    return markers;
+  }
   markers.reserve(snapshot.model.links.size() + snapshot.model.joints.size());
 
   for (const auto &link : snapshot.model.links) {

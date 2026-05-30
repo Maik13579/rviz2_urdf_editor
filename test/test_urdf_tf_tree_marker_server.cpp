@@ -210,6 +210,16 @@ TEST(UrdfTfTreeMarkerServer, AppliesAlphaScaleAndHiddenLinkSettings) {
   EXPECT_NEAR(joint->controls.front().markers.front().scale.x, 0.008, 0.001);
 }
 
+TEST(UrdfTfTreeMarkerServer, AlphaZeroPublishesNoInteractiveMarkers) {
+  auto &state = rviz2_urdf_editor::UrdfEditorState::instance();
+  ASSERT_TRUE(state.loadFile(
+      writeTempFile("marker_alpha_zero.urdf", kTwoJointUrdf).string(), {}))
+      << state.snapshot().last_error;
+  state.setTfAlphaMultiplier(0.0);
+
+  EXPECT_TRUE(currentMarkers().empty());
+}
+
 TEST(UrdfTfTreeMarkerServer, MenuCallbacksOpenExpectedEditors) {
   auto &state = rviz2_urdf_editor::UrdfEditorState::instance();
   ASSERT_TRUE(state.loadFile(
