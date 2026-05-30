@@ -1,3 +1,7 @@
+<!--
+  Copyright 2026 Maik Knof
+  SPDX-License-Identifier: Apache-2.0
+-->
 <library path="rviz2_urdf_editor">
   <class
     name="rviz2_urdf_editor/UrdfEditorPanel"

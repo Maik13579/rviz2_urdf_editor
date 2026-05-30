@@ -1,3 +1,6 @@
+# Copyright 2026 Maik Knof
+# SPDX-License-Identifier: Apache-2.0
+
 cmake_minimum_required(VERSION 3.8)
 project(rviz2_urdf_editor)
 
@@ -62,7 +65,9 @@ install(
 )
 
 install(
-  FILES plugin_description.xml
+  FILES
+    LICENSE
+    plugin_description.xml
   DESTINATION share/${PROJECT_NAME}
 )
 

@@ -1,3 +1,6 @@
+// Copyright 2026 Maik Knof
+// SPDX-License-Identifier: Apache-2.0
+
 #include "rviz2_urdf_editor/urdf_editor_state.hpp"
 
 #include <algorithm>

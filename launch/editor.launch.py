@@ -1,3 +1,6 @@
+# Copyright 2026 Maik Knof
+# SPDX-License-Identifier: Apache-2.0
+
 from launch import LaunchDescription
 from launch.substitutions import PathJoinSubstitution
 from launch_ros.actions import Node
