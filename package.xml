@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>rviz2_urdf_editor</name>
+  <version>1.0.0</version>
+  <description>A native RViz URDF editor panel plugin.</description>
+  <maintainer email="maik.knof@gmx.de">Maik Knof</maintainer>
+  <license>TODO</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>ament_index_cpp</depend>
+  <depend>geometry_msgs</depend>
+  <depend>launch_ros</depend>
+  <depend>pluginlib</depend>
+  <depend>pugixml-dev</depend>
+  <depend>rclcpp</depend>
+  <depend>robot_state_publisher</depend>
+  <depend>rviz_common</depend>
+  <exec_depend>rviz2</exec_depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>tf2_ros</depend>
+  <depend>yaml-cpp</depend>
+
+  <test_depend>ament_cmake_gtest</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+    <rosdoc2>doc/rosdoc2.yaml</rosdoc2>
+  </export>
+</package>

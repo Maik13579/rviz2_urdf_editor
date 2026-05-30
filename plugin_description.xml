@@ -1,0 +1,14 @@
+<library path="rviz2_urdf_editor">
+  <class
+    name="rviz2_urdf_editor/UrdfEditorPanel"
+    type="rviz2_urdf_editor::UrdfEditorPanel"
+    base_class_type="rviz_common::Panel">
+    <description>Loads URDF/xacro files and edits the selected XML source.</description>
+  </class>
+  <class
+    name="rviz2_urdf_editor/UrdfNavPanel"
+    type="rviz2_urdf_editor::UrdfNavPanel"
+    base_class_type="rviz_common::Panel">
+    <description>Shows URDF frames, files, joints, xacro symbols, and meshes.</description>
+  </class>
+</library>

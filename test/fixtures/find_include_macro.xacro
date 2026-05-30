@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:macro name="fixture_sensor" params="prefix parent">
+    <link name="${prefix}_sensor_link"/>
+    <joint name="${prefix}_sensor_joint" type="fixed">
+      <parent link="${parent}"/>
+      <child link="${prefix}_sensor_link"/>
+    </joint>
+  </xacro:macro>
+</robot>
