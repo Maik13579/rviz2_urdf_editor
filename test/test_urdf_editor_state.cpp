@@ -848,6 +848,54 @@ TEST(UrdfEditorState, EditorWidgetFormatsXmlWithTwoSpaceIndentOnApply) {
   EXPECT_EQ(state.snapshot().model.robot_name, "format_bot");
 }
 
+TEST(UrdfEditorState, EditorWidgetPreservesBlankLinesOnApply) {
+  auto node =
+      std::make_shared<rclcpp::Node>("urdf_editor_blank_lines_apply_test");
+  const auto path = writeTempFile("dashboard_blank_lines_apply.urdf", kSimpleUrdf);
+  auto &state = rviz2_urdf_editor::UrdfEditorState::instance();
+  ASSERT_TRUE(state.loadFile(path.string(), {})) << state.snapshot().last_error;
+
+  rviz2_urdf_editor::UrdfXmlEditorWidget editor_widget;
+  editor_widget.initialize(node, "xml_editor_blank_lines_apply");
+  editor_widget.configure(editor_widget.getDefaultConfig());
+
+  auto *editor = editor_widget.widget()->findChild<QPlainTextEdit *>();
+  ASSERT_NE(editor, nullptr);
+  auto *apply_button = [&]() -> QPushButton * {
+    for (auto *button : editor_widget.widget()->findChildren<QPushButton *>()) {
+      if (button->text() == "Apply") {
+        return button;
+      }
+    }
+    return nullptr;
+  }();
+  ASSERT_NE(apply_button, nullptr);
+
+  editor->setPlainText(
+      "<robot name=\"blank_lines_bot\">\n"
+      "  <link name=\"base_link\" />\n"
+      "\n"
+      "  <link name=\"arm_link\" />\n"
+      "\n"
+      "  <joint name=\"arm_joint\" type=\"fixed\">\n"
+      "    <parent link=\"base_link\" />\n"
+      "\n"
+      "\n"
+      "    <child link=\"arm_link\" />\n"
+      "  </joint>\n"
+      "</robot>");
+  QApplication::processEvents();
+  apply_button->click();
+  QApplication::processEvents();
+
+  const auto formatted = editor->toPlainText().toStdString();
+  EXPECT_NE(formatted.find("<link name=\"base_link\" />\n\n  <link"),
+            std::string::npos);
+  EXPECT_NE(formatted.find("<parent link=\"base_link\" />\n\n\n    <child"),
+            std::string::npos);
+  EXPECT_EQ(state.snapshot().model.robot_name, "blank_lines_bot");
+}
+
 TEST(UrdfEditorState, EditorWidgetShowsCompactValidStatus) {
   auto node = std::make_shared<rclcpp::Node>("urdf_editor_compact_status_test");
   const auto path = writeTempFile("dashboard_compact_status.urdf", kSimpleUrdf);
