@@ -481,6 +481,7 @@ protected:
 private:
   struct FoldRegion {
     QString name;
+    int occurrence{0};
     int start_block{0};
     int end_block{0};
     bool collapsed{false};
@@ -593,6 +594,7 @@ private:
     fold_regions_.clear();
     const QString text = toPlainText();
     std::vector<OpenTag> stack;
+    std::map<QString, int> occurrences;
     for (int pos = 0; pos < text.size();) {
       const int open = text.indexOf('<', pos);
       if (open < 0) {
@@ -629,14 +631,14 @@ private:
           const int end_block = document()->findBlock(open).blockNumber();
           stack.erase(std::next(tag).base(), stack.end());
           if (end_block > start_block) {
-            FoldRegion region{name, start_block, end_block, false};
+            FoldRegion region{name, occurrences[name]++, start_block, end_block,
+                              false};
             if (preserve_matching_collapsed) {
               const auto previous =
                   std::find_if(previous_regions.begin(), previous_regions.end(),
                                [&](const FoldRegion &candidate) {
                                  return candidate.name == region.name &&
-                                        candidate.start_block == region.start_block &&
-                                        candidate.end_block == region.end_block;
+                                        candidate.occurrence == region.occurrence;
                                });
               region.collapsed =
                   previous != previous_regions.end() && previous->collapsed;

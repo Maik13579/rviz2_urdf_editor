@@ -1030,6 +1030,50 @@ TEST(UrdfEditorState, EditorWidgetGutterFoldToggleHidesInteriorBlocks) {
   }
 }
 
+TEST(UrdfEditorState, EditorWidgetPreservesCollapsedFoldsWhileEditing) {
+  auto node = std::make_shared<rclcpp::Node>("urdf_editor_gutter_fold_edit_test");
+  const auto path = writeTempFile("dashboard_gutter_fold_edit.urdf", kSimpleUrdf);
+  auto &state = rviz2_urdf_editor::UrdfEditorState::instance();
+  ASSERT_TRUE(state.loadFile(path.string(), {})) << state.snapshot().last_error;
+
+  rviz2_urdf_editor::UrdfXmlEditorWidget editor_widget;
+  editor_widget.initialize(node, "xml_editor_gutter_fold_edit");
+  editor_widget.configure(editor_widget.getDefaultConfig());
+  editor_widget.widget()->resize(700, 500);
+  editor_widget.widget()->show();
+  QApplication::processEvents();
+
+  auto *editor = editor_widget.widget()->findChild<QPlainTextEdit *>();
+  auto *gutter = editor_widget.widget()->findChild<QWidget *>("xml_editor_gutter");
+  ASSERT_NE(editor, nullptr);
+  ASSERT_NE(gutter, nullptr);
+
+  QTextCursor fold_cursor(editor->document()->findBlockByNumber(2));
+  QMouseEvent collapse(
+      QEvent::MouseButtonPress,
+      QPoint(gutter->width() - 4, editor->cursorRect(fold_cursor).center().y()),
+      Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+  QApplication::sendEvent(gutter, &collapse);
+  QApplication::processEvents();
+  EXPECT_FALSE(editor->document()->findBlockByNumber(3).isVisible());
+
+  QTextCursor edit_cursor(editor->document()->findBlockByNumber(1));
+  edit_cursor.movePosition(QTextCursor::EndOfBlock);
+  edit_cursor.insertText("\n  <!-- inserted while a fold is collapsed -->");
+  QApplication::processEvents();
+
+  bool found_hidden_visual = false;
+  for (QTextBlock block = editor->document()->firstBlock(); block.isValid();
+       block = block.next()) {
+    if (block.text().contains("<visual>")) {
+      found_hidden_visual = true;
+      EXPECT_FALSE(block.isVisible());
+      break;
+    }
+  }
+  EXPECT_TRUE(found_hidden_visual);
+}
+
 TEST(UrdfEditorState, EditorWidgetFoldsResetAfterDocumentReload) {
   auto node = std::make_shared<rclcpp::Node>("urdf_editor_gutter_fold_reset_test");
   const auto path = writeTempFile("dashboard_gutter_fold_reset_a.urdf", kSimpleUrdf);
