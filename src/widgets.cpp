@@ -21,6 +21,7 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPlainTextEdit>
+#include <QPolygon>
 #include <QRegularExpression>
 #include <QResizeEvent>
 #include <QScrollArea>
@@ -403,6 +404,9 @@ public:
 
     for (QTextBlock block = firstVisibleBlock(); block.isValid();
          block = block.next()) {
+      if (!block.isVisible()) {
+        continue;
+      }
       const auto geometry = blockBoundingGeometry(block).translated(contentOffset());
       const int top = static_cast<int>(geometry.top());
       const int bottom = static_cast<int>(geometry.bottom());
@@ -433,13 +437,19 @@ public:
       const int center_y = top + std::max(0, bottom - top) / 2;
       const QRect toggle_rect(toggle_left, center_y - 5, 10, 10);
       painter.setPen(text_color);
-      painter.setBrush(region->collapsed ? accent.lighter(135) : Qt::NoBrush);
-      painter.drawRect(toggle_rect.adjusted(0, 0, -1, -1));
-      painter.drawLine(toggle_rect.left() + 2, center_y, toggle_rect.right() - 2,
-                       center_y);
+      painter.setBrush(region->collapsed ? accent.lighter(135) : text_color);
       if (region->collapsed) {
-        painter.drawLine(toggle_rect.center().x(), toggle_rect.top() + 2,
-                         toggle_rect.center().x(), toggle_rect.bottom() - 2);
+        QPolygon triangle;
+        triangle << QPoint(toggle_rect.left() + 3, toggle_rect.top() + 1)
+                 << QPoint(toggle_rect.left() + 3, toggle_rect.bottom() - 1)
+                 << QPoint(toggle_rect.right() - 2, center_y);
+        painter.drawPolygon(triangle);
+      } else {
+        QPolygon triangle;
+        triangle << QPoint(toggle_rect.left() + 1, toggle_rect.top() + 3)
+                 << QPoint(toggle_rect.right() - 1, toggle_rect.top() + 3)
+                 << QPoint(toggle_rect.center().x(), toggle_rect.bottom() - 2);
+        painter.drawPolygon(triangle);
       }
     }
   }
@@ -544,6 +554,9 @@ private:
   QTextBlock blockAtY(const int y) const {
     for (QTextBlock block = firstVisibleBlock(); block.isValid();
          block = block.next()) {
+      if (!block.isVisible()) {
+        continue;
+      }
       const auto geometry = blockBoundingGeometry(block).translated(contentOffset());
       if (geometry.top() <= y && y <= geometry.bottom()) {
         return block;
@@ -674,14 +687,21 @@ private:
     for (QTextBlock block = document()->firstBlock(); block.isValid();
          block = block.next()) {
       const bool visible = hidden_blocks.count(block.blockNumber()) == 0;
+      const bool changed = block.isVisible() != visible;
       block.setVisible(visible);
       if (!visible) {
         block.setLineCount(0);
       } else if (block.layout() != nullptr && block.layout()->lineCount() <= 0) {
         block.setLineCount(1);
       }
+      if (changed) {
+        document()->markContentsDirty(block.position(), block.length());
+      }
     }
     document()->markContentsDirty(0, document()->characterCount());
+    document()->adjustSize();
+    viewport()->update();
+    gutter_->update();
   }
 
   XmlEditorGutter *gutter_{nullptr};

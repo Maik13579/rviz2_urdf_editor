@@ -1003,8 +1003,10 @@ TEST(UrdfEditorState, EditorWidgetGutterFoldToggleHidesInteriorBlocks) {
   ASSERT_NE(editor, nullptr);
   ASSERT_NE(gutter, nullptr);
   ASSERT_TRUE(editor->document()->findBlockByNumber(2).isValid());
-  ASSERT_TRUE(editor->document()->findBlockByNumber(3).isValid());
-  EXPECT_TRUE(editor->document()->findBlockByNumber(3).isVisible());
+  for (int block_number = 3; block_number <= 7; ++block_number) {
+    ASSERT_TRUE(editor->document()->findBlockByNumber(block_number).isValid());
+    EXPECT_TRUE(editor->document()->findBlockByNumber(block_number).isVisible());
+  }
 
   QTextCursor cursor(editor->document()->findBlockByNumber(2));
   const auto y = editor->cursorRect(cursor).center().y();
@@ -1012,13 +1014,19 @@ TEST(UrdfEditorState, EditorWidgetGutterFoldToggleHidesInteriorBlocks) {
                        Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
   QApplication::sendEvent(gutter, &collapse);
   QApplication::processEvents();
-  EXPECT_FALSE(editor->document()->findBlockByNumber(3).isVisible());
+  for (int block_number = 3; block_number <= 7; ++block_number) {
+    EXPECT_FALSE(editor->document()->findBlockByNumber(block_number).isVisible())
+        << block_number;
+  }
 
   QMouseEvent expand(QEvent::MouseButtonPress, QPoint(gutter->width() - 4, y),
                      Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
   QApplication::sendEvent(gutter, &expand);
   QApplication::processEvents();
-  EXPECT_TRUE(editor->document()->findBlockByNumber(3).isVisible());
+  for (int block_number = 3; block_number <= 7; ++block_number) {
+    EXPECT_TRUE(editor->document()->findBlockByNumber(block_number).isVisible())
+        << block_number;
+  }
 }
 
 TEST(UrdfEditorState, EditorWidgetFoldsResetAfterDocumentReload) {
