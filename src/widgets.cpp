@@ -170,6 +170,16 @@ std::string formatXmlWithTwoSpaceIndent(const std::string &xml,
   return output.str();
 }
 
+std::string compactEditorStatus(const UrdfXmlEditorDocument &document) {
+  if (document.whole_file) {
+    return "Editor is valid. Editing whole XML.";
+  }
+  if (!document.kind.empty()) {
+    return "Editor is valid. Editing " + document.kind + " XML.";
+  }
+  return "Editor is valid.";
+}
+
 void setRobotModelAlpha(rviz_common::DisplayGroup *group, const double alpha) {
   if (group == nullptr) {
     return;
@@ -1211,10 +1221,7 @@ void UrdfXmlEditorWidget::validateCurrentXml() {
       return;
     }
   }
-  const auto valid_status =
-      document.status.empty() ? std::string{"XML is valid."}
-                              : "XML is valid. " + document.status;
-  status_label_->setText(QString::fromStdString(valid_status));
+  status_label_->setText(QString::fromStdString(compactEditorStatus(document)));
   apply_button_->setEnabled(document.editable);
 }
 

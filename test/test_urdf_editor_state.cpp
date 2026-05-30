@@ -10,6 +10,7 @@
 #include <vector>
 
 #include <QApplication>
+#include <QLabel>
 #include <QMetaObject>
 #include <QMouseEvent>
 #include <QPushButton>
@@ -845,6 +846,27 @@ TEST(UrdfEditorState, EditorWidgetFormatsXmlWithTwoSpaceIndentOnApply) {
   EXPECT_NE(formatted.find("\n        <box size=\"1 1 1\" />"),
             std::string::npos);
   EXPECT_EQ(state.snapshot().model.robot_name, "format_bot");
+}
+
+TEST(UrdfEditorState, EditorWidgetShowsCompactValidStatus) {
+  auto node = std::make_shared<rclcpp::Node>("urdf_editor_compact_status_test");
+  const auto path = writeTempFile("dashboard_compact_status.urdf", kSimpleUrdf);
+  auto &state = rviz2_urdf_editor::UrdfEditorState::instance();
+  ASSERT_TRUE(state.loadFile(path.string(), {})) << state.snapshot().last_error;
+
+  rviz2_urdf_editor::UrdfXmlEditorWidget editor_widget;
+  editor_widget.initialize(node, "xml_editor_compact_status");
+  editor_widget.configure(editor_widget.getDefaultConfig());
+  QApplication::processEvents();
+
+  bool found_compact_status = false;
+  for (auto *label : editor_widget.widget()->findChildren<QLabel *>()) {
+    if (label->text() == "Editor is valid. Editing whole XML.") {
+      found_compact_status = true;
+      break;
+    }
+  }
+  EXPECT_TRUE(found_compact_status);
 }
 
 TEST(UrdfEditorState, EditorWidgetSelectionUsesGutterOnly) {
