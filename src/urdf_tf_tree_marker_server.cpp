@@ -166,6 +166,25 @@ std::string markerPayloadName(const std::string &marker_name,
   return marker_name.substr(prefix.size());
 }
 
+bool jointEndpointChanged(
+    const UrdfJointSummary &joint,
+    const std::map<std::string, geometry_msgs::msg::TransformStamped> &previous,
+    const std::map<std::string, geometry_msgs::msg::TransformStamped> &current) {
+  const auto previous_transform = previous.find(joint.name);
+  const auto current_transform = current.find(joint.name);
+  if (previous_transform == previous.end() || current_transform == current.end()) {
+    return previous_transform != previous.end() ||
+           current_transform != current.end();
+  }
+
+  constexpr double kEndpointEpsilon = 1e-6;
+  const auto &before = previous_transform->second.transform.translation;
+  const auto &after = current_transform->second.transform.translation;
+  return std::abs(before.x - after.x) > kEndpointEpsilon ||
+         std::abs(before.y - after.y) > kEndpointEpsilon ||
+         std::abs(before.z - after.z) > kEndpointEpsilon;
+}
+
 } // namespace
 
 UrdfTfTreeMarkerServer &UrdfTfTreeMarkerServer::instance() {
@@ -224,6 +243,7 @@ void UrdfTfTreeMarkerServer::stop() {
   seen_selected_joint_.clear();
   seen_highlight_color_.clear();
   seen_tf_joint_color_.clear();
+  last_joint_transforms_.clear();
 }
 
 std::vector<visualization_msgs::msg::InteractiveMarker>
@@ -305,6 +325,7 @@ void UrdfTfTreeMarkerServer::rebuildFromState() {
   seen_selected_joint_ = snapshot.selected_joint;
   seen_highlight_color_ = snapshot.highlight_color;
   seen_tf_joint_color_ = snapshot.tf_joint_color;
+  last_joint_transforms_ = transforms;
 }
 
 void UrdfTfTreeMarkerServer::refreshJointMarkers() {
@@ -316,6 +337,9 @@ void UrdfTfTreeMarkerServer::refreshJointMarkers() {
   bool changed = false;
   for (const auto &joint : snapshot.model.joints) {
     if (snapshot.hidden_geometry_links.count(joint.child_link) > 0) {
+      continue;
+    }
+    if (!jointEndpointChanged(joint, last_joint_transforms_, transforms)) {
       continue;
     }
     visualization_msgs::msg::InteractiveMarker marker;
@@ -337,6 +361,7 @@ void UrdfTfTreeMarkerServer::refreshJointMarkers() {
   }
   if (changed) {
     server_->applyChanges();
+    last_joint_transforms_ = transforms;
   }
 }
 

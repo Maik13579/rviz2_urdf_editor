@@ -59,6 +59,8 @@ private:
   std::string seen_selected_joint_;
   std::string seen_highlight_color_;
   std::string seen_tf_joint_color_;
+  std::map<std::string, geometry_msgs::msg::TransformStamped>
+      last_joint_transforms_;
 };
 
 } // namespace rviz2_urdf_editor
